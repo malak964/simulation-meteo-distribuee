@@ -9,48 +9,58 @@ def main():
     global_height, global_width = 120, 120
     steps = 10  # Nombre d'itérations de temps
     
-    # 1. Initialisation de l'infrastructure MPI globale avec les dimensions requises
+    # 1. Initialisation de l'infrastructure MPI globale
     mpi_mgmt = MPIManager(global_width, global_height)
-    
-    # 2. Récupération de la taille du morceau calculée par ton MPIManager
     local_height = mpi_mgmt.local_height
     
-    # 3. Initialisation des données locales sur le CPU (NumPy)
+    # 2. Initialisation des données locales sur le CPU (NumPy)
     np.random.seed(42)
     local_grid_cpu = np.zeros((local_height, global_width), dtype=np.float32)
     
+    # On injecte de la chaleur sur le morceau du milieu (Rank 1)
     if mpi_mgmt.rank == 1:
-        # On injecte de la chaleur artificielle sur le morceau du milieu pour voir la diffusion
         local_grid_cpu[2:8, 40:80] = 100.0
 
-    # 4. Allocation et transfert des données vers le GPU local (CuPy)
+    # 3. Allocation et transfert vers le GPU local (CuPy)
     d_local_grid = cp.array(local_grid_cpu)
     
-    # 5. Instanciation du Kernel GPU d'Aya
+    # 4. Instanciation du Kernel GPU d'Aya
     kernel = ClimateSimulationKernel(local_grid_shape=(local_height, global_width), alpha=0.1)
     
     if mpi_mgmt.rank == 0:
         print(f"[Master] Lancement de la simulation répartie sur {mpi_mgmt.size} processus...")
 
-    # 6. Boucle principale de la simulation temporelle
+    # 5. Boucle principale de la simulation temporelle
     for step in range(steps):
-        # En provenance du code de Marwa : On repasse temporairement sur le CPU pour l'échange réseau MPI
+        # Échange de halos (via CPU pour la communication MPI)
         h_grid = cp.asnumpy(d_local_grid)
         buffered_h_grid = exchange_halos(h_grid, mpi_mgmt)
         
-        # On renvoie la grille avec ses frontières à jour sur le GPU pour le calcul
+        # Calcul du stencil sur GPU
         d_buffered_grid = cp.array(buffered_h_grid)
-        
-        # En provenance du code d'Aya : Calcul du stencil sur le GPU
         d_next_buffered = kernel.compute_next_step(d_buffered_grid)
         
-        # On extrait la zone centrale utile (sans les lignes fantômes) pour l'étape suivante
+        # Extraction de la zone centrale utile
         d_local_grid = d_next_buffered[1:-1, :]
         
-    # Synchronisation finale
+    # Synchronisation avant la collecte
     mpi_mgmt.comm.Barrier()
     
-    print(f"[Processus {mpi_mgmt.rank}] Simulation terminée avec succès. Grille locale calculée sur GPU.")
+    # 6. COLLECTE ET CENTRALISATION DES DONNÉES
+    # On rapatrie le résultat final du GPU vers le CPU avant le Gather MPI
+    final_local_cpu = cp.asnumpy(d_local_grid)
+    
+    # Appel de ta méthode pour reconstruire la grille complète sur le Rank 0
+    global_grid = mpi_mgmt.gather_grid(final_local_cpu)
+    
+    # 7. Validation et affichage du résultat final sur le Master
+    if mpi_mgmt.rank == 0:
+        print(f"\n[Master] Collecte réussie ! Grille globale reconstruite : {global_grid.shape}")
+        print(f"[Master] Température maximale détectée : {np.max(global_grid):.2f}°C")
+        print(f"[Master] Température moyenne globale : {np.mean(global_grid):.4f}°C")
+        print("[Master] Fin du projet. Prêt pour l'analyse des résultats.")
+    else:
+        print(f"[Processus {mpi_mgmt.rank}] Données envoyées au Master et mémoire libérée.")
 
 if __name__ == "__main__":
     main()
