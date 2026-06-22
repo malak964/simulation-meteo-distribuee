@@ -1,0 +1,7 @@
+Sujet 11 : Simulation météo distribuée avec GPU
+Application : prévision climatique
+
+Consignes et Spécifications du projet :
+● Partition de la grille météo entre nœuds (Découpage spatial)
+● Calcul parallèle GPU pour chaque zone (Accélération avec CuPy/CUDA)
+● Communication des frontières (Gestion des Halos via MPI)
