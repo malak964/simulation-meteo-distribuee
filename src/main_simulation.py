@@ -5,18 +5,17 @@ from halo_exchange import exchange_halos
 from simulation_kernel import ClimateSimulationKernel
 
 def main():
-    # 1. Initialisation de l'infrastructure MPI globale
-    mpi_mgmt = MPIManager()
-    
     # Configuration de la simulation (Grille globale de 120x120 pour le test)
     global_height, global_width = 120, 120
     steps = 10  # Nombre d'itérations de temps
+    
+    # 1. Initialisation de l'infrastructure MPI globale avec les dimensions requises
+    mpi_mgmt = MPIManager(global_width, global_height)
     
     # 2. Décomposition de domaine : calcul de la taille du morceau pour ce processus
     local_height = mpi_mgmt.get_local_grid_shape(global_height)
     
     # 3. Initialisation des données locales sur le CPU (NumPy)
-    # On crée une condition initiale (ex: une zone chaude au milieu de la grille globale)
     np.random.seed(42)
     local_grid_cpu = np.zeros((local_height, global_width), dtype=np.float32)
     
@@ -25,7 +24,6 @@ def main():
         local_grid_cpu[2:8, 40:80] = 100.0
 
     # 4. Allocation et transfert des données vers le GPU local (CuPy)
-    # Chaque processus MPI contrôle sa propre mémoire GPU de manière isolée
     d_local_grid = cp.array(local_grid_cpu)
     
     # 5. Instanciation du Kernel GPU d'Aya
@@ -49,7 +47,7 @@ def main():
         # On extrait la zone centrale utile (sans les lignes fantômes) pour l'étape suivante
         d_local_grid = d_next_buffered[1:-1, :]
         
-    # Synchronisation finale pour s'assurer que tout le monde a terminé proprement
+    # Synchronisation finale
     mpi_mgmt.comm.Barrier()
     
     print(f"[Processus {mpi_mgmt.rank}] Simulation terminée avec succès. Grille locale calculée sur GPU.")
