@@ -12,8 +12,8 @@ def main():
     # 1. Initialisation de l'infrastructure MPI globale avec les dimensions requises
     mpi_mgmt = MPIManager(global_width, global_height)
     
-    # 2. Décomposition de domaine : calcul de la taille du morceau pour ce processus
-    local_height = mpi_mgmt.get_local_grid_shape(global_height)
+    # 2. Récupération de la taille du morceau calculée par ton MPIManager
+    local_height = mpi_mgmt.local_height
     
     # 3. Initialisation des données locales sur le CPU (NumPy)
     np.random.seed(42)
