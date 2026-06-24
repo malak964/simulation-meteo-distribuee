@@ -558,9 +558,9 @@ print(cp.cuda.runtime.getDeviceProperties(0)['name'])
 
 **Équipe projet — Sujet 11 : Simulation Météo Distribuée avec GPU**
 
-- **Malak Boussetta** — Scrum Master / Infrastructure MPI (`mpi_manager.py`, décomposition de domaine, orchestrateur principal)
-- **Aya** — Développeuse GPU / CUDA Kernels (`simulation_kernel.py`, stencil de diffusion CuPy)
-- **Marwa** — Ingénieure QA / Échange des Frontières (`halo_exchange.py`, communication MPI des halos)
+- **Malak Boussetta** 
+- **Aya Adadi** 
+- **Marwa Bouzaouit**
 
 Master d'Excellence en Intelligence Artificielle
 Faculté des Sciences Ben M'Sik — Université Hassan II de Casablanca
